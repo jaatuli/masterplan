@@ -66,25 +66,34 @@ def _parse_ical(content: bytes, cal_name: str, window_start: date, window_end: d
         # All-day event (date) vs. timed event (datetime)
         if isinstance(start_val, datetime):
             event_date = start_val.astimezone().date()   # local time, not UTC
-            time_str = start_val.astimezone().strftime("%H:%M")
-            all_day = False
+            time_str   = start_val.astimezone().strftime("%H:%M")
+            all_day    = False
         else:
             event_date = start_val
-            time_str = None
-            all_day = True
+            time_str   = None
+            all_day    = True
 
         if not (window_start <= event_date <= window_end):
             continue
 
+        # Parse end time for timed events so we can filter out past events
+        end_iso: str | None = None
+        dtend = component.get("DTEND")
+        if dtend and not all_day:
+            end_val = dtend.dt
+            if isinstance(end_val, datetime):
+                end_iso = end_val.astimezone().strftime("%Y-%m-%dT%H:%M")
+
         summary = str(component.get("SUMMARY", "(ei otsikkoa)"))
 
         events.append({
-            "title":    summary,
-            "date":     event_date.isoformat(),
-            "time":     time_str,
-            "all_day":  all_day,
-            "calendar": cal_name,
-            "_sort":    event_date.isoformat() + (time_str or "00:00"),
+            "title":     summary,
+            "date":      event_date.isoformat(),
+            "time":      time_str,
+            "all_day":   all_day,
+            "end_time":  end_iso,
+            "calendar":  cal_name,
+            "_sort":     event_date.isoformat() + (time_str or "00:00"),
         })
 
     return events
@@ -103,6 +112,7 @@ def fetch(config: dict, use_cache: bool = True) -> dict:
         )
 
     today = date.today()
+    now   = datetime.now().astimezone()
     window_end = today + timedelta(days=30)
     all_events = []
 
@@ -128,8 +138,25 @@ def fetch(config: dict, use_cache: bool = True) -> dict:
             raise DataFetchError(f"iCal fetch failed ({name}): {e}") from e
 
     all_events.sort(key=lambda e: e["_sort"])
+
+    # Remove timed events that have already ended
+    def _not_ended(ev: dict) -> bool:
+        if ev.get("all_day"):
+            return True   # all-day events are shown the whole day
+        end = ev.get("end_time")
+        ref = ev.get("time")
+        ts  = end or (f"{ev['date']}T{ref}" if ref else None)
+        if not ts:
+            return True
+        try:
+            return datetime.fromisoformat(ts).astimezone() > now
+        except ValueError:
+            return True
+
+    all_events = [ev for ev in all_events if _not_ended(ev)]
     for ev in all_events:
         ev.pop("_sort", None)
+        ev.pop("end_time", None)
 
     data = {
         "events":     all_events[:5],

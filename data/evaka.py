@@ -117,7 +117,15 @@ def _fetch_raw(s: requests.Session, base_url: str, start: date, end: date) -> li
 
 # ── Conversion to standard format ──────────────────────────────────────────
 
+_AFTERNOON_CUTOFF_HOUR = 17   # after this hour, skip today and show tomorrow onwards
+
+
 def _parse_events(raw: list, today: date, end: date) -> list[dict]:
+    # After 17:00 the day is effectively over for daycare purposes
+    min_date = today
+    if datetime.now().hour >= _AFTERNOON_CUTOFF_HOUR:
+        min_date = today + timedelta(days=1)
+
     events = []
     for ev in raw:
         period    = ev.get("period", {})
@@ -128,7 +136,7 @@ def _parse_events(raw: list, today: date, end: date) -> list[dict]:
             ev_date = date.fromisoformat(start_str)
         except ValueError:
             continue
-        if not (today <= ev_date <= end):
+        if not (min_date <= ev_date <= end):
             continue
 
         title = ev.get("title", "")
