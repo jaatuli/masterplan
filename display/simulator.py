@@ -1,10 +1,11 @@
 import os
+import platform
 import subprocess
 from pathlib import Path
 
 
 class SimulatorDisplay:
-    """Mac-simulaatio: tallentaa kuvan PNG:nä ja avaa sen Preview-ohjelmalla."""
+    """Simulaatio: tallentaa kuvan PNG:nä ja avaa sen oletuskuvakatselijalla."""
 
     OUTPUT_PATH = Path("output/dashboard.png")
 
@@ -14,4 +15,10 @@ class SimulatorDisplay:
         print(f"Kuva tallennettu: {self.OUTPUT_PATH.resolve()}")
 
         if open_preview:
-            subprocess.Popen(["open", str(self.OUTPUT_PATH)])
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(str(self.OUTPUT_PATH))
+            elif system == "Darwin":
+                subprocess.Popen(["open", str(self.OUTPUT_PATH)])
+            else:
+                subprocess.Popen(["xdg-open", str(self.OUTPUT_PATH)])

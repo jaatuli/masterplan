@@ -39,16 +39,27 @@ A home dashboard for a Waveshare 7.5" e-ink display (800×480), running on a Ras
 | Daycare | Espoo eVaka (`/api/citizen/auth/weak-login`) | Username + password |
 | Transit | [HSL Digitransit v2 GraphQL](https://portal-api.digitransit.fi/) | API key |
 
-## Development setup (macOS)
+## Development setup
+
+Runs on macOS and Windows. Both use PNG simulation — no Raspberry Pi needed for development.
 
 ### 1. Clone and create virtualenv
 
+**macOS / Linux:**
 ```bash
 git clone <repo>
 cd eInk
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+
+**Windows (Git Bash or similar):**
+```bash
+git clone <repo>
+cd eInk
+python -m venv venv
+venv/Scripts/pip install -r requirements.txt
 ```
 
 ### 2. Configure
@@ -101,19 +112,26 @@ Register at [portal-api.digitransit.fi](https://portal-api.digitransit.fi/) and 
 
 ### 5. Run
 
+**macOS:**
 ```bash
-source venv/bin/activate
-
-# Full run, open preview on macOS
-python main.py --preview
-
-# Force data refresh (skip cache)
+python main.py --preview           # full run, opens PNG in Preview
 python main.py --no-cache --preview
-
-# Test a single module
-python main.py --only weather
-python main.py --only hsl --no-cache
+python main.py --only weather      # test single module
 ```
+
+**Windows:**
+```bash
+venv/Scripts/python main.py --preview           # full run, opens PNG in default viewer
+venv/Scripts/python main.py --no-cache --preview
+venv/Scripts/python main.py --only weather      # test single module
+
+# Optional: suppress Unicode log noise in cp1252 terminals
+PYTHONIOENCODING=utf-8 venv/Scripts/python main.py --no-cache
+```
+
+> **Windows note:** Windows terminals using cp1252 encoding show `--- Logging error ---` for the
+> ✓/✗ log characters — this is cosmetic only. The PNG is generated correctly regardless.
+> Set `PYTHONIOENCODING=utf-8` to suppress it.
 
 ## Raspberry Pi deployment
 
@@ -202,7 +220,7 @@ eInk/
 │   ├── evaka.py         # Espoo daycare (eVaka)
 │   └── hsl.py           # HSL Digitransit transit
 ├── display/
-│   ├── simulator.py     # PNG output for macOS development
+│   ├── simulator.py     # PNG output for macOS/Windows development
 │   └── epaper.py        # Waveshare 7.5" v2 driver (Raspberry Pi)
 ├── fonts/               # Optional: place Inter-Regular.ttf + Inter-Bold.ttf here
 ├── cache/               # JSON cache files (auto-generated)

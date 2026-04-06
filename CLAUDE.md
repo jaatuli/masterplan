@@ -3,28 +3,45 @@
 ## Project overview
 
 Home dashboard for Waveshare 7.5" e-ink display (800×480px, grayscale).
-Development on macOS (PNG simulation), deployed on Raspberry Pi 3 Model B.
+Development on macOS or Windows (PNG simulation), deployed on Raspberry Pi Zero 2 W.
 
 Hardware: Waveshare 7.5" e-Paper HAT V2 + Raspberry Pi Zero 2 W (wired, wall-mounted).
 
 ## Running
 
+### macOS
 ```bash
 cd /Users/sihvojuh/Personal/Projects/eInk
 source venv/bin/activate
 
-python main.py --preview           # full run, open PNG on macOS
+python main.py --preview           # full run, open PNG
 python main.py --no-cache --preview
 python main.py --only hsl --no-cache   # test single module
 ```
 
-Sync to Pi:
+### Windows
 ```bash
-./sync.sh   # rsync to pi@eink.local:~/eInk/ (excludes venv, cache, output, .git)
+# First-time setup
+python -m venv venv
+venv/Scripts/pip install -r requirements.txt
+cp config.example.yaml config.yaml   # then edit config.yaml with your credentials
+
+# Running (in bash/Git Bash terminal)
+venv/Scripts/python main.py --preview           # full run, opens PNG in default viewer
+venv/Scripts/python main.py --no-cache --preview
+venv/Scripts/python main.py --only weather --no-cache   # test single module
+
+# For clean log output (suppresses Unicode encoding noise in cp1252 terminals)
+PYTHONIOENCODING=utf-8 venv/Scripts/python main.py --no-cache
 ```
 
-Run on Pi:
+Note: Windows terminals using cp1252 encoding will show `--- Logging error ---` noise for
+the ✓/✗ log characters — this is cosmetic only. The PNG is still generated correctly.
+`PYTHONIOENCODING=utf-8` suppresses it.
+
+### Raspberry Pi (deploy)
 ```bash
+./sync.sh   # rsync to pi@eink.local:~/eInk/ (excludes venv, cache, output, .git)
 ssh pi@eink.local "cd ~/eInk && venv/bin/python main.py"
 ssh pi@eink.local "cd ~/eInk && venv/bin/python main.py --no-cache"
 ```
@@ -160,7 +177,5 @@ Cron runs `main.py` every 10 minutes + `@reboot`; each module decides independen
 ## Git
 
 Branch: main
-Repo: https://github.com/JuhaniS/eInk
-Last major commits:
-- "Refine layout, fonts, and config" — Inter fonts, 3-col layout, news strip, evaka cutoff fix
-- "Update README" — layout diagram, hardware info
+Repo: https://github.com/jaatuli/masterplan
+Upstream: https://github.com/JuhaniS/eInk
