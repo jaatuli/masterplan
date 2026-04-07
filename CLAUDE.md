@@ -80,17 +80,39 @@ display/
 
 ## Layout (3 columns × 2 rows + full-width news strip)
 
+The 6 grid cells are configurable via `layout.grid` in `config.yaml`.
+The news strip is fixed at the bottom (always full-width).
+
 ```
 ┌──────────────────┬──────────────────┬──────────────────┐  ROW_H = 170px
-│  PÄIVÄKOTI       │  KALENTERI       │  SÄÄ + PVM/KELLO │
+│  layout[0][0]    │  layout[0][1]    │  layout[0][2]    │
 ├──────────────────┼──────────────────┼──────────────────┤  ROW_H = 170px
-│  SÄHKÖ           │  HSL             │  JÄTEHUOLTO      │
+│  layout[1][0]    │  layout[1][1]    │  layout[1][2]    │
 ├──────────────────┴──────────────────┴──────────────────┤  NEWS_H = 140px
 │  UUTISET  (full width, 2 items stacked)                │
 └────────────────────────────────────────────────────────┘
 COL_W ≈ 266px, COL2_X = 267, COL3_X = 534
 NEWS_Y = 340, no header bar
 ```
+
+Default layout (matches original hardcoded order):
+```yaml
+layout:
+  grid:
+    - [evaka, calendar, weather]
+    - [electricity, hsl, waste]
+```
+
+Available modules for grid cells: `weather`, `calendar`, `electricity`, `waste`, `hsl`, `evaka`
+Use `~` (null) to leave a cell blank. An unknown or unconfigured-but-required module shows a placeholder.
+
+### Configurable layout internals (render.py)
+
+- `DEFAULT_LAYOUT` constant defines the fallback grid
+- `_DRAW_FUNCS` dict maps module name → draw function (e.g. `"evaka"` → `_draw_daycare`)
+- `render(data, layout, news, width, height)` iterates the grid and dispatches to draw functions
+- `_draw_placeholder()` is called for blank/unknown cells
+- `main.py` reads `layout.grid`, validates it, collects unique module names, and only fetches those
 
 ## Rendering conventions (render.py)
 
@@ -105,6 +127,7 @@ NEWS_Y = 340, no header bar
 - Arrows: use `->` not `→` (unicode arrows unreliable across fonts)
 - Text wrapping: `_wrap_text(draw, text, font, max_width)` — pixel-based, not char-based
 - Badge: `_badge(draw, x, y, text)` — black pill with white text (used in HSL)
+- `render()` signature: `render(data, layout, news, width, height)` — data is a dict keyed by module name
 
 ## Data module patterns
 
@@ -183,11 +206,9 @@ Cron runs `main.py` every 10 minutes + `@reboot`; each module decides independen
 ## Known issues / TODO
 
 - [x] Caruna returning null kWh — resolved; now fetches 7-day daily history (`daily_kwh` list)
+- [x] Layout hardcoded — resolved; now configurable via `layout.grid` in config.yaml
 - [ ] Consider adding forecast strip to weather cell
 - [ ] Pi Zero 2 W with headers (WH version) would avoid needing to solder headers
-- [ ] ESP32 deployment: build `custom_components/caruna/` HA integration (uses `pycaruna`)
-- [ ] ESP32 deployment: build `custom_components/evaka/` HA integration (aiohttp session auth)
-- [ ] ESP32 deployment: choose image server (AppDaemon) vs LVGL approach and implement `esphome/dashboard.yaml`
 
 ## Git
 

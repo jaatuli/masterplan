@@ -71,6 +71,8 @@ def fetch_module(name: str, config: dict, use_cache: bool) -> "dict | None":
             from data.hsl import fetch
         elif name == "news":
             from data.news import fetch
+        elif name == "keep":
+            from data.keep import fetch
         else:
             log.error("Unknown module: %s", name)
             return None
@@ -100,7 +102,7 @@ def parse_args():
     )
     parser.add_argument(
         "--only",
-        choices=["weather", "electricity", "waste", "calendar", "evaka", "hsl", "news"],
+        choices=["weather", "electricity", "waste", "calendar", "evaka", "hsl", "news", "keep"],
         help="Run only one module (for testing)"
     )
     parser.add_argument(
@@ -132,36 +134,51 @@ def main():
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return
 
-    # Fetch all modules independently
+    # Determine grid layout from config (falls back to default if absent/invalid)
+    from render import DEFAULT_LAYOUT
+
+    def _validate_grid(grid) -> bool:
+        return (
+            isinstance(grid, list) and len(grid) == 2
+            and all(isinstance(r, list) and len(r) == 3 for r in grid)
+        )
+
+    grid = config.get("layout", {}).get("grid", DEFAULT_LAYOUT)
+    if not _validate_grid(grid):
+        log.warning("Invalid layout.grid in config — using default layout")
+        grid = DEFAULT_LAYOUT
+
+    # Modules that require specific credentials to be configured
+    _requires_config: dict[str, tuple[str, str]] = {
+        "evaka": ("evaka", "username"),
+        "hsl":   ("hsl",   "api_key"),
+        "keep":  ("keep",  "username"),
+    }
+
+    # Collect unique module names from the grid (skip None/blank cells)
+    grid_modules: set[str] = {
+        cell for row in grid for cell in row if cell
+    }
+
+    # Fetch only the modules that appear in the layout
     log.info("Fetching data...")
-    weather     = fetch_module("weather",     config, use_cache)
-    electricity = fetch_module("electricity", config, use_cache)
-    waste       = fetch_module("waste",       config, use_cache)
-    calendar    = fetch_module("calendar",    config, use_cache)
+    data: dict = {}
+    for name in grid_modules:
+        req = _requires_config.get(name)
+        if req and not config.get(req[0], {}).get(req[1]):
+            data[name] = None
+            continue
+        data[name] = fetch_module(name, config, use_cache)
 
-    # eVaka – only fetch if configured
-    daycare = None
-    if config.get("evaka", {}).get("username"):
-        daycare = fetch_module("evaka", config, use_cache)
-
-    # HSL – only fetch if api_key is configured
-    hsl = None
-    if config.get("hsl", {}).get("api_key"):
-        hsl = fetch_module("hsl", config, use_cache)
-
-    # News – always fetch (uses public RSS, no credentials needed)
+    # News – always fetched (full-width strip, not part of the configurable grid)
     news = fetch_module("news", config, use_cache)
 
     # Render image
     log.info("Rendering image...")
     from render import render
     image = render(
-        weather=weather,
-        electricity=electricity,
-        waste=waste,
-        calendar=calendar,
-        daycare=daycare,
-        hsl=hsl,
+        data=data,
+        layout=grid,
         news=news,
         width=width,
         height=height,

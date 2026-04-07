@@ -72,6 +72,16 @@ hsl:
   min_walk_bus: 3           # minimum minutes to walk to a bus/tram stop
   min_walk_rail: 15         # minimum minutes to walk to a train/metro station
 
+# ── Layout ───────────────────────────────────────────────────────────────────
+# Assign any data module to any of the 6 grid cells (3 columns × 2 rows).
+# Available modules: weather, calendar, electricity, waste, hsl, evaka, keep
+# Use ~ (null) to leave a cell blank.
+# The news strip is always rendered full-width at the bottom and is not configurable.
+layout:
+  grid:
+    - [evaka, calendar, weather]      # Row 1: left, center, right
+    - [electricity, hsl, waste]       # Row 2: left, center, right
+
 # ── Display ───────────────────────────────────────────────────────────────────
 display:
   width: 800
