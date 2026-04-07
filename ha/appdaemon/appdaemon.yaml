@@ -1,0 +1,27 @@
+appdaemon:
+  latitude: 60.xx       # replace with your coordinates
+  longitude: 24.xx
+  elevation: 30
+  time_zone: Europe/Helsinki
+  plugins:
+    HASS:
+      type: hass
+      ha_url: http://homeassistant:8123
+      token: !secret appdaemon_token
+  # pip packages needed by the dashboard code
+  pip_packages:
+    - Pillow
+    - requests
+    - pyyaml
+    - pycaruna
+    - icalendar
+    - recurring_ical_events
+
+http:
+  url: http://127.0.0.1:5050
+
+logs:
+  main_log:
+    filename: /config/appdaemon/logs/main.log
+  error_log:
+    filename: /config/appdaemon/logs/error.log

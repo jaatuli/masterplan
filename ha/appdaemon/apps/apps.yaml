@@ -1,0 +1,4 @@
+dashboard_renderer:
+  module: dashboard_renderer
+  class: DashboardRenderer
+  interval_seconds: 600
