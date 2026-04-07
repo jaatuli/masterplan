@@ -72,6 +72,17 @@ hsl:
   min_walk_bus: 3           # minimum minutes to walk to a bus/tram stop
   min_walk_rail: 15         # minimum minutes to walk to a train/metro station
 
+# ── Google Keep notes (optional) ─────────────────────────────────────────────
+# Requires a Google app-specific password — NOT your main Google password.
+# Generate one at: https://myaccount.google.com/apppasswords
+# Leave this section out entirely to disable the Keep panel.
+keep:
+  username: "your@gmail.com"
+  password: "xxxx xxxx xxxx xxxx"    # app-specific password; only needed on first run or token expiry
+  label: "dashboard"                  # optional: only show notes tagged with this label
+  max_notes: 5                        # max notes to display (default: 5)
+  ttl_minutes: 60                     # cache TTL in minutes (default: 60)
+
 # ── Display ───────────────────────────────────────────────────────────────────
 display:
   width: 800

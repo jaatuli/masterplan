@@ -72,6 +72,7 @@ data/
   evaka.py           – Espoo eVaka weak-login session API
   hsl.py             – HSL Digitransit v2 GraphQL
   news.py            – YLE RSS feed (no auth)
+  keep.py            – Google Keep notes via gkeepapi (app-specific password)
 
 display/
   simulator.py       – saves output/dashboard.png (macOS)
@@ -179,6 +180,30 @@ Cron runs `main.py` every 10 minutes + `@reboot`; each module decides independen
 - URL configurable via `news.url` in config.yaml
 - Returns top 3 items with title + description
 - Rendered full-width at bottom: 2 items stacked, description in FONT_LABEL
+
+## Google Keep module specifics (data/keep.py)
+
+- Uses `gkeepapi` (unofficial Python library for Google Keep sync API)
+- Auth: two-step flow — `gpsoauth.perform_master_login()` exchanges the app password for a
+  long-lived master token saved to `cache/keep_token.json`; subsequent runs use the saved token.
+  Password is only needed on first run or after token expiry/revocation.
+  - Generate app password at: https://myaccount.google.com/apppasswords (requires 2-Step Verification)
+- Optional label filter: `keep.findLabel(label_name)` — degrades gracefully if label not found
+- Returns up to `max_notes` (default 5) notes, pinned notes sorted first:
+  ```python
+  {
+      "notes": [{"title": str, "snippet": str, "pinned": bool}, ...],
+      "label": str,
+      "fetched_at": str,
+      "_stale": bool   # optional
+  }
+  ```
+- Cache: `cache/keep.json`, TTL from `keep.ttl_minutes` (default 60 min)
+- Token cache: `cache/keep_token.json` — `{"master_token": "oauth2rt_1/...", "android_id": "..."}`
+- On failure: returns stale cache if available, otherwise raises `DataFetchError`
+- Render: `_draw_keep()` in render.py — pinned notes get filled-dot indicator; title in FONT_MED,
+  snippet (up to 2 lines) in FONT_LABEL; section label is `keep.label.upper()` or `"MUISTIINPANOT"`
+- Wired into the layout dispatch table (`_DRAW_FUNCS`) via the configurable-layout branch
 
 ## Known issues / TODO
 
