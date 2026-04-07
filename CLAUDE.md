@@ -5,7 +5,10 @@
 Home dashboard for Waveshare 7.5" e-ink display (800×480px, grayscale).
 Development on macOS or Windows (PNG simulation), deployed on Raspberry Pi Zero 2 W.
 
-Hardware: Waveshare 7.5" e-Paper HAT V2 + Raspberry Pi Zero 2 W (wired, wall-mounted).
+Primary hardware: Waveshare 7.5" e-Paper HAT V2 + Raspberry Pi Zero 2 W (wired, wall-mounted).
+
+Alternative deployment: Waveshare ESP32-S3-Touch-LCD-7 (800×480 color LCD) via ESPHome + Home Assistant.
+See README for two options: image server (AppDaemon runs render.py, ESPHome fetches PNG) or LVGL (HA sensors → ESPHome native widgets).
 
 ## Running
 
@@ -181,8 +184,10 @@ Cron runs `main.py` every 10 minutes + `@reboot`; each module decides independen
 
 - [x] Caruna returning null kWh — resolved; now fetches 7-day daily history (`daily_kwh` list)
 - [ ] Consider adding forecast strip to weather cell
-- [ ] Consider adding forecast strip to weather cell
 - [ ] Pi Zero 2 W with headers (WH version) would avoid needing to solder headers
+- [ ] ESP32 deployment: build `custom_components/caruna/` HA integration (uses `pycaruna`)
+- [ ] ESP32 deployment: build `custom_components/evaka/` HA integration (aiohttp session auth)
+- [ ] ESP32 deployment: choose image server (AppDaemon) vs LVGL approach and implement `esphome/dashboard.yaml`
 
 ## Git
 
