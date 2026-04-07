@@ -583,6 +583,85 @@ def _draw_waste(draw: ImageDraw.Draw, data: dict | None,
         cy += line_h
 
 
+# ── Keep notes ──────────────────────────────────────────────────────────────
+
+def _draw_keep(draw: ImageDraw.Draw, data: dict | None,
+               x: int, y: int, w: int, h: int):
+    """Renders Google Keep notes in a grid cell."""
+    label_text = "MUISTIINPANOT"
+    if data and data.get("label"):
+        label_text = data["label"].upper()
+    cy = _label(draw, x, y, label_text, stale=bool(data and data.get("_stale")))
+
+    if not data:
+        _text(draw, (x + PAD, cy), "Ei saatavilla", FONT_SMALL, fill=GRAY)
+        return
+
+    notes = data.get("notes", [])
+    if not notes:
+        _text(draw, (x + PAD, cy), "Ei muistiinpanoja", FONT_TINY, fill=GRAY)
+        return
+
+    title_h   = 22   # FONT_MED line height
+    snippet_h = 15   # FONT_LABEL line height
+    gap       = 8    # vertical gap between notes
+    max_w     = w - 2 * PAD
+
+    for note in notes:
+        if cy + title_h > y + h - PAD:
+            break
+
+        title   = note.get("title", "")
+        snippet = note.get("snippet", "")
+        pinned  = note.get("pinned", False)
+
+        title_x = x + PAD
+        if pinned:
+            dot_r = 3
+            dot_cy = cy + title_h // 2
+            draw.ellipse(
+                [title_x, dot_cy - dot_r, title_x + dot_r * 2, dot_cy + dot_r],
+                fill=FG,
+            )
+            title_x += dot_r * 2 + 6
+
+        title_max_w = x + w - PAD - title_x
+        title_lines = _wrap_text(draw, title, FONT_MED, title_max_w)
+        _text(draw, (title_x, cy), title_lines[0] if title_lines else title, FONT_MED)
+        cy += title_h
+
+        if snippet and cy + snippet_h <= y + h - PAD:
+            for line in _wrap_text(draw, snippet, FONT_LABEL, max_w)[:2]:
+                if cy + snippet_h > y + h - PAD:
+                    break
+                _text(draw, (x + PAD, cy), line, FONT_LABEL, fill=GRAY)
+                cy += snippet_h
+
+        cy += gap
+
+
+# ── Placeholder (unconfigured / missing module) ──────────────────────────────
+
+def _draw_placeholder(draw: ImageDraw.Draw, data: dict | None,
+                      x: int, y: int, w: int, h: int, name: str = ""):
+    """Empty cell shown when a module is unconfigured or its name is unknown."""
+    cy = _label(draw, x, y, name.upper() if name else "—")
+    _text(draw, (x + PAD, cy), "Ei saatavilla", FONT_SMALL, fill=GRAY)
+
+
+# ── Module → draw-function dispatch ─────────────────────────────────────────
+
+_DRAW_FUNCS: dict[str, object] = {
+    "weather":     _draw_weather,
+    "calendar":    _draw_calendar,
+    "electricity": _draw_electricity,
+    "hsl":         _draw_hsl,
+    "waste":       _draw_waste,
+    "evaka":       _draw_daycare,   # module name differs from function name
+    "keep":        _draw_keep,
+}
+
+
 # ── Header ───────────────────────────────────────────────────────────────────
 
 def _draw_header(draw: ImageDraw.Draw, width: int):
@@ -606,51 +685,86 @@ def _draw_header(draw: ImageDraw.Draw, width: int):
 
 # ── Main render function ─────────────────────────────────────────────────────
 
+#: Default 3-col × 2-row grid (matches original hardcoded layout)
+DEFAULT_LAYOUT: list[list[str | None]] = [
+    ["evaka",       "calendar", "weather"],
+    ["electricity", "hsl",      "waste"],
+]
+
+
 def render(
-    weather:     dict | None = None,
-    electricity: dict | None = None,
-    waste:       dict | None = None,
-    calendar:    dict | None = None,
-    daycare:     dict | None = None,
-    hsl:         dict | None = None,
-    news:        dict | None = None,
+    data:   "dict[str, dict | None] | None" = None,
+    layout: "list[list[str | None]] | None" = None,
+    news:   dict | None = None,
     width:  int = WIDTH,
     height: int = HEIGHT,
 ) -> Image.Image:
     """
     Renders the dashboard and returns a PIL Image (mode L, 800×480).
 
-    Layout — dark header + 3-column × 2-row grid:
+    Parameters
+    ----------
+    data   : mapping of module name → fetch() result dict (or None if unavailable).
+             e.g. {"weather": {...}, "evaka": {...}, "hsl": None, ...}
+    layout : 2×3 grid specifying which module occupies each cell.
+             Defaults to DEFAULT_LAYOUT if not provided.
+             Use None in a cell to leave it blank.
+             e.g. [["evaka", "calendar", "weather"],
+                   ["electricity", "hsl", "waste"]]
+    news   : news module data (always rendered full-width at the bottom).
+    width, height : image dimensions in pixels.
 
-      ┌──────────────────────────────────────────────────────────┐  HEADER (46px)
-      │  KOTINÄKYMÄ                              ke 19.3.2026   │
-      ├──────────────────┬──────────────────┬────────────────────┤
-      │  PÄIVÄKOTI       │  KALENTERI       │  SÄÄ              │  ROW 1 (217px)
-      ├──────────────────┼──────────────────┼────────────────────┤
-      │  UUTISET         │  HSL             │  JÄTEHUOLTO       │  ROW 2 (217px)
-      └──────────────────┴──────────────────┴────────────────────┘
-       COL_W ≈ 266 px each
+    Layout:
+
+      ┌──────────────────┬──────────────────┬──────────────────┐  ROW_H px
+      │  layout[0][0]    │  layout[0][1]    │  layout[0][2]    │
+      ├──────────────────┼──────────────────┼──────────────────┤  ROW_H px
+      │  layout[1][0]    │  layout[1][1]    │  layout[1][2]    │
+      ├──────────────────┴──────────────────┴──────────────────┤  NEWS_H px
+      │  UUTISET  (full width)                                  │
+      └────────────────────────────────────────────────────────┘
     """
+    if data is None:
+        data = {}
+    if layout is None:
+        layout = DEFAULT_LAYOUT
+
+    # Compute geometry from actual width/height
+    col_w  = (width - 2) // 3
+    col2_x = col_w + 1
+    col3_x = col_w * 2 + 2
+    row_h  = (height - NEWS_H) // 2
+    row2_y = row_h
+    news_y = row_h * 2
+
+    xs = [0, col2_x, col3_x]
+    ws = [col_w, col_w, width - col3_x]
+    ys = [0, row2_y]
+
     img  = Image.new("L", (width, height), BG)
     draw = ImageDraw.Draw(img)
 
-    # Grid lines — 3 columns × 2 rows + full-width news strip
-    _vertical_divider(draw, COL_W,       0, NEWS_Y)
-    _vertical_divider(draw, COL_W * 2 + 1, 0, NEWS_Y)
-    _divider(draw, 0, ROW2_Y, width)
-    _divider(draw, 0, NEWS_Y,  width)
+    # Grid dividers
+    _vertical_divider(draw, col_w,           0, news_y)
+    _vertical_divider(draw, col_w * 2 + 1,   0, news_y)
+    _divider(draw, 0, row2_y, width)
+    _divider(draw, 0, news_y,  width)
 
-    # Row 1: daycare | calendar | weather+datetime
-    _draw_daycare (draw, daycare,     0,      0,      COL_W,          ROW_H)
-    _draw_calendar(draw, calendar,    COL2_X, 0,      COL_W,          ROW_H)
-    _draw_weather (draw, weather,     COL3_X, 0,      width - COL3_X, ROW_H)
+    # Draw each cell according to the layout grid
+    for row_idx, row in enumerate(layout[:2]):
+        for col_idx, module_name in enumerate(row[:3]):
+            x = xs[col_idx]
+            y = ys[row_idx]
+            w = ws[col_idx]
+            draw_fn   = _DRAW_FUNCS.get(module_name) if module_name else None
+            cell_data = data.get(module_name) if module_name else None
+            if draw_fn:
+                draw_fn(draw, cell_data, x, y, w, row_h)
+            else:
+                _draw_placeholder(draw, cell_data, x, y, w, row_h,
+                                  name=module_name or "")
 
-    # Row 2: electricity | hsl | waste
-    _draw_electricity(draw, electricity, 0,      ROW2_Y, COL_W,          ROW_H)
-    _draw_hsl        (draw, hsl,         COL2_X, ROW2_Y, COL_W,          ROW_H)
-    _draw_waste      (draw, waste,       COL3_X, ROW2_Y, width - COL3_X, ROW_H)
-
-    # Row 3: full-width news strip
-    _draw_news(draw, news, 0, NEWS_Y, width, NEWS_H)
+    # News strip — always full-width at the bottom
+    _draw_news(draw, news, 0, news_y, width, NEWS_H)
 
     return img
