@@ -67,7 +67,9 @@ def fetch(config: dict, use_cache: bool = True) -> dict:
         import gkeepapi  # imported here so missing library gives a clear error
 
         keep = gkeepapi.Keep()
-        keep.login(username, password)
+        # Strip spaces from app-specific passwords (Google displays them with spaces)
+        clean_password = password.replace(" ", "")
+        keep.authenticate(username, clean_password)
 
         # Resolve label filter
         target_label = None
