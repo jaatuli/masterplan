@@ -3,24 +3,25 @@ import sys
 
 import appdaemon.plugins.hass.hassapi as hass
 
-REPO_DIR  = "/config/eink"
-OUTPUT    = "/config/www/dashboard.png"
-CACHE_DIR = f"{REPO_DIR}/cache"
+# From inside the AppDaemon container:
+#   /config/         = AppDaemon's own config dir (/addon_configs/a0d7b954_appdaemon/ on the host)
+#   /homeassistant/  = HA config dir (/config/ on the host) — www/ is served at /local/
+REPO_DIR = "/config/eink"
+OUTPUT   = "/homeassistant/www/dashboard.png"
 
 
 class DashboardRenderer(hass.Hass):
     def initialize(self):
-        interval = self.args.get("interval_seconds", 600)
-        self.run_every(self.render, "now", interval)
+        os.makedirs("/homeassistant/www", exist_ok=True)
         self.log("DashboardRenderer started")
+        self.render({})
+        interval = self.args.get("interval_seconds", 600)
+        self.run_every(self.render, f"now+{interval}", interval)
 
     def render(self, kwargs):
-        # chdir so all relative paths (cache/, fonts/, config.yaml) resolve correctly
         os.chdir(REPO_DIR)
         if REPO_DIR not in sys.path:
             sys.path.insert(0, REPO_DIR)
-
-        os.makedirs(CACHE_DIR, exist_ok=True)
 
         try:
             from main import load_config, fetch_module

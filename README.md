@@ -141,11 +141,11 @@ The dashboard can also run on a **Waveshare ESP32-S3-Touch-LCD-7** (800×480 col
 
 Two approaches are available:
 
-**Option A — Image server (recommended, zero code changes):**
+**Option A — Image server (recommended, reuses existing code):**
 ```
-External APIs → AppDaemon (runs render.py) → /config/www/dashboard.png
-                                                    ↓
-                              ESPHome online_image → Waveshare 7" LCD
+External APIs → AppDaemon (runs render.py) → /homeassistant/www/dashboard.png
+                                                         ↓
+                                 ESPHome online_image → Waveshare 7" LCD
 ```
 AppDaemon (HA add-on) runs the existing Python renderer on a schedule and saves the PNG to HA's `www/` folder. ESPHome fetches and displays it via the `online_image` component.
 
@@ -162,21 +162,67 @@ All data lives in HA as sensors; ESPHome renders the layout natively using LVGL 
 | Display | Waveshare ESP32-S3-Touch-LCD-7 (800×480, RGB, touch) |
 | Power | USB-C |
 
-### Data sources in Home Assistant
+### Option A setup: AppDaemon image server
 
-| Dashboard module | HA solution | Notes |
+#### 1. Install AppDaemon add-on
+
+**Settings → Add-ons → Add-on Store → AppDaemon** → Install, enable Start on boot.
+
+#### 2. Add Python packages
+
+**AppDaemon → Configuration tab**, add under `python_packages`:
+```
+Pillow, requests, pycaruna, icalendar, recurring_ical_events, aiohttp
+```
+
+#### 3. Clone the repo into AppDaemon's config directory
+
+From the HA Terminal add-on (the host path `/addon_configs/a0d7b954_appdaemon/` is `/config/` inside AppDaemon's container):
+
+```bash
+cd /addon_configs/a0d7b954_appdaemon
+git clone https://github.com/jaatuli/masterplan eink
+cp eink/config.example.yaml eink/config.yaml
+nano eink/config.yaml   # fill in credentials
+```
+
+#### 4. Install the AppDaemon app
+
+Copy `ha/appdaemon/apps/dashboard_renderer.py` and `ha/appdaemon/apps/apps.yaml` to `/config/apps/` (the shared HA apps directory).
+
+#### 5. Restart AppDaemon
+
+The app runs immediately on startup and every 10 minutes after. The PNG is served at:
+```
+http://<your-ha-ip>:8123/local/dashboard.png
+```
+
+#### Path notes (AppDaemon container vs host)
+
+| Location | Host path (Terminal add-on) | AppDaemon container path |
 |---|---|---|
-| Weather | Built-in Open-Meteo integration | Native HA |
-| Calendar | Built-in Google Calendar / iCal | Native HA |
-| News | REST sensor (YLE RSS) | Template sensor |
-| Waste | Template sensor | Manual YAML schedule |
-| HSL Transit | [`Mallonbacka/custom-component-digitransit`](https://github.com/Mallonbacka/custom-component-digitransit) | Install via HACS |
-| Caruna Electricity | Custom component (`custom_components/caruna/`) | Uses `pycaruna` pip library |
-| eVaka Daycare | Custom component (`custom_components/evaka/`) | aiohttp session auth |
+| AppDaemon config | `/addon_configs/a0d7b954_appdaemon/` | `/config/` |
+| HA config / www | `/config/` | `/homeassistant/` |
+| eink repo | `/addon_configs/a0d7b954_appdaemon/eink/` | `/config/eink/` |
+| Output PNG | `/config/www/dashboard.png` | `/homeassistant/www/dashboard.png` |
 
-### Custom components
+#### 6. ESPHome config
 
-HA's `manifest.json` supports pip `requirements`, so `pycaruna` and `aiohttp` integrate natively. The Caruna and eVaka components mirror the logic already in `data/electricity.py` and `data/evaka.py`.
+```yaml
+online_image:
+  - url: http://192.168.1.x:8123/local/dashboard.png
+    id: dashboard_img
+    format: PNG
+    update_interval: 600s
+    on_download_finished:
+      - component.update: my_display
+
+display:
+  - platform: rpi_dpi_rgb
+    id: my_display
+    lambda: |-
+      it.image(0, 0, id(dashboard_img));
+```
 
 ### ESPHome board support
 

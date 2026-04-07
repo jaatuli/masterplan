@@ -1,3 +1,14 @@
+# This file is a reference template — the actual file managed by the HA add-on
+# lives at /addon_configs/a0d7b954_appdaemon/appdaemon.yaml (host path) or
+# /config/appdaemon.yaml inside the AppDaemon container.
+#
+# The HA add-on auto-injects the HASS plugin connection via SUPERVISOR_TOKEN,
+# so ha_url and token are not needed here.
+#
+# Python packages are added via the add-on UI (Settings → Add-ons → AppDaemon
+# → Configuration → python_packages), NOT in this file. Required packages:
+#   Pillow, requests, pycaruna, icalendar, recurring_ical_events, aiohttp
+
 appdaemon:
   latitude: 60.xx       # replace with your coordinates
   longitude: 24.xx
@@ -6,22 +17,11 @@ appdaemon:
   plugins:
     HASS:
       type: hass
-      ha_url: http://homeassistant:8123
-      token: !secret appdaemon_token
-  # pip packages needed by the dashboard code
-  pip_packages:
-    - Pillow
-    - requests
-    - pyyaml
-    - pycaruna
-    - icalendar
-    - recurring_ical_events
+      token: !env_var SUPERVISOR_TOKEN
 
 http:
-  url: http://127.0.0.1:5050
+  url: http://0.0.0.0:5050
 
-logs:
-  main_log:
-    filename: /config/appdaemon/logs/main.log
-  error_log:
-    filename: /config/appdaemon/logs/error.log
+admin:
+api:
+hadashboard:
