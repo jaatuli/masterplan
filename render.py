@@ -583,63 +583,6 @@ def _draw_waste(draw: ImageDraw.Draw, data: dict | None,
         cy += line_h
 
 
-# ── Keep notes ──────────────────────────────────────────────────────────────
-
-def _draw_keep(draw: ImageDraw.Draw, data: dict | None,
-               x: int, y: int, w: int, h: int):
-    """Renders Google Keep notes in a grid cell."""
-    label_text = "MUISTIINPANOT"
-    if data and data.get("label"):
-        label_text = data["label"].upper()
-    cy = _label(draw, x, y, label_text, stale=bool(data and data.get("_stale")))
-
-    if not data:
-        _text(draw, (x + PAD, cy), "Ei saatavilla", FONT_SMALL, fill=GRAY)
-        return
-
-    notes = data.get("notes", [])
-    if not notes:
-        _text(draw, (x + PAD, cy), "Ei muistiinpanoja", FONT_TINY, fill=GRAY)
-        return
-
-    title_h   = 22   # FONT_MED line height
-    snippet_h = 15   # FONT_LABEL line height
-    gap       = 8    # vertical gap between notes
-    max_w     = w - 2 * PAD
-
-    for note in notes:
-        if cy + title_h > y + h - PAD:
-            break
-
-        title   = note.get("title", "")
-        snippet = note.get("snippet", "")
-        pinned  = note.get("pinned", False)
-
-        title_x = x + PAD
-        if pinned:
-            dot_r = 3
-            dot_cy = cy + title_h // 2
-            draw.ellipse(
-                [title_x, dot_cy - dot_r, title_x + dot_r * 2, dot_cy + dot_r],
-                fill=FG,
-            )
-            title_x += dot_r * 2 + 6
-
-        title_max_w = x + w - PAD - title_x
-        title_lines = _wrap_text(draw, title, FONT_MED, title_max_w)
-        _text(draw, (title_x, cy), title_lines[0] if title_lines else title, FONT_MED)
-        cy += title_h
-
-        if snippet and cy + snippet_h <= y + h - PAD:
-            for line in _wrap_text(draw, snippet, FONT_LABEL, max_w)[:2]:
-                if cy + snippet_h > y + h - PAD:
-                    break
-                _text(draw, (x + PAD, cy), line, FONT_LABEL, fill=GRAY)
-                cy += snippet_h
-
-        cy += gap
-
-
 # ── Placeholder (unconfigured / missing module) ──────────────────────────────
 
 def _draw_placeholder(draw: ImageDraw.Draw, data: dict | None,
@@ -658,7 +601,6 @@ _DRAW_FUNCS: dict[str, object] = {
     "hsl":         _draw_hsl,
     "waste":       _draw_waste,
     "evaka":       _draw_daycare,   # module name differs from function name
-    "keep":        _draw_keep,
 }
 
 

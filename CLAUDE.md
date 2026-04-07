@@ -20,7 +20,6 @@ source venv/bin/activate
 python main.py --preview           # full run, open PNG
 python main.py --no-cache --preview
 python main.py --only hsl --no-cache   # test single module
-python main.py --only keep --no-cache  # test Google Keep module
 ```
 
 ### Windows
@@ -34,7 +33,6 @@ cp config.example.yaml config.yaml   # then edit config.yaml with your credentia
 venv/Scripts/python main.py --preview           # full run, opens PNG in default viewer
 venv/Scripts/python main.py --no-cache --preview
 venv/Scripts/python main.py --only weather --no-cache   # test single module
-venv/Scripts/python main.py --only keep --no-cache      # test Google Keep module
 
 # For clean log output (suppresses Unicode encoding noise in cp1252 terminals)
 PYTHONIOENCODING=utf-8 venv/Scripts/python main.py --no-cache
@@ -74,7 +72,6 @@ data/
   evaka.py           – Espoo eVaka weak-login session API
   hsl.py             – HSL Digitransit v2 GraphQL
   news.py            – YLE RSS feed (no auth)
-  keep.py            – Google Keep notes via gkeepapi (app-specific password)
 
 display/
   simulator.py       – saves output/dashboard.png (macOS)
@@ -106,7 +103,7 @@ layout:
     - [electricity, hsl, waste]
 ```
 
-Available modules for grid cells: `weather`, `calendar`, `electricity`, `waste`, `hsl`, `evaka`, `keep`
+Available modules for grid cells: `weather`, `calendar`, `electricity`, `waste`, `hsl`, `evaka`
 Use `~` (null) to leave a cell blank. An unknown or unconfigured-but-required module shows a placeholder.
 
 ### Configurable layout internals (render.py)
@@ -206,33 +203,12 @@ Cron runs `main.py` every 10 minutes + `@reboot`; each module decides independen
 - Returns top 3 items with title + description
 - Rendered full-width at bottom: 2 items stacked, description in FONT_LABEL
 
-## Google Keep module specifics (data/keep.py)
-
-- Uses `gkeepapi` (unofficial Python library for Google Keep sync API)
-- Auth: `keep.login(username, password)` — requires an **app-specific password**, not your main Google password
-  - Generate at: https://myaccount.google.com/apppasswords
-- Optional label filter: `keep.findLabel(label_name)` — degrades gracefully if label not found
-- Returns up to `max_notes` (default 5) notes, pinned notes sorted first:
-  ```python
-  {
-      "notes": [{"title": str, "snippet": str, "pinned": bool}, ...],
-      "label": str,
-      "fetched_at": str,
-      "_stale": bool   # optional
-  }
-  ```
-- Cache: `cache/keep.json`, TTL from `keep.ttl_minutes` (default 60 min)
-- On failure: returns stale cache if available, otherwise raises `DataFetchError`
-- Render: pinned notes get a filled-dot indicator; title in FONT_MED, snippet (up to 2 lines) in FONT_LABEL
-- Section label: `keep.label.upper()` if set, otherwise `"MUISTIINPANOT"`
-
 ## Known issues / TODO
 
 - [x] Caruna returning null kWh — resolved; now fetches 7-day daily history (`daily_kwh` list)
 - [x] Layout hardcoded — resolved; now configurable via `layout.grid` in config.yaml
 - [ ] Consider adding forecast strip to weather cell
 - [ ] Pi Zero 2 W with headers (WH version) would avoid needing to solder headers
-- [ ] gkeepapi token persistence — currently re-authenticates on every non-cached fetch; could cache the master token via `keep.getMasterToken()` / `keep.resume()`
 
 ## Git
 
