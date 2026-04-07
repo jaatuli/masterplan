@@ -5,7 +5,10 @@
 Home dashboard for Waveshare 7.5" e-ink display (800×480px, grayscale).
 Development on macOS or Windows (PNG simulation), deployed on Raspberry Pi Zero 2 W.
 
-Hardware: Waveshare 7.5" e-Paper HAT V2 + Raspberry Pi Zero 2 W (wired, wall-mounted).
+Primary hardware: Waveshare 7.5" e-Paper HAT V2 + Raspberry Pi Zero 2 W (wired, wall-mounted).
+
+Alternative deployment: Waveshare ESP32-S3-Touch-LCD-7 (800×480 color LCD) via ESPHome + Home Assistant.
+See README for two options: image server (AppDaemon runs render.py, ESPHome fetches PNG) or LVGL (HA sensors → ESPHome native widgets).
 
 ## Running
 

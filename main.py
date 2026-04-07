@@ -43,11 +43,13 @@ def load_config(path: str = "config.yaml") -> dict:
 def get_display():
     """Selects the correct display driver based on the runtime environment."""
     if platform.system() == "Linux" and platform.machine().startswith("aarch"):
-        from display.epaper import EPaperDisplay
-        return EPaperDisplay()
-    else:
-        from display.simulator import SimulatorDisplay
-        return SimulatorDisplay()
+        try:
+            from display.epaper import EPaperDisplay
+            return EPaperDisplay()
+        except (ImportError, RuntimeError):
+            pass
+    from display.simulator import SimulatorDisplay
+    return SimulatorDisplay()
 
 
 # ── Data fetching ───────────────────────────────────────────────────────────

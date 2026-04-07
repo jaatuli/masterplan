@@ -133,6 +133,103 @@ PYTHONIOENCODING=utf-8 venv/Scripts/python main.py --no-cache
 > ✓/✗ log characters — this is cosmetic only. The PNG is generated correctly regardless.
 > Set `PYTHONIOENCODING=utf-8` to suppress it.
 
+## Alternative deployment: ESP32 + Home Assistant
+
+The dashboard can also run on a **Waveshare ESP32-S3-Touch-LCD-7** (800×480 color LCD) using ESPHome and Home Assistant as the data broker. This removes the Pi entirely.
+
+### Architecture
+
+Two approaches are available:
+
+**Option A — Image server (recommended, reuses existing code):**
+```
+External APIs → AppDaemon (runs render.py) → /homeassistant/www/dashboard.png
+                                                         ↓
+                                 ESPHome online_image → Waveshare 7" LCD
+```
+AppDaemon (HA add-on) runs the existing Python renderer on a schedule and saves the PNG to HA's `www/` folder. ESPHome fetches and displays it via the `online_image` component.
+
+**Option B — LVGL (full color, touch-capable):**
+```
+External APIs → Home Assistant sensors → ESPHome LVGL UI → Waveshare 7" LCD
+```
+All data lives in HA as sensors; ESPHome renders the layout natively using LVGL widgets.
+
+### Hardware
+
+| Part | Model |
+|---|---|
+| Display | Waveshare ESP32-S3-Touch-LCD-7 (800×480, RGB, touch) |
+| Power | USB-C |
+
+### Option A setup: AppDaemon image server
+
+#### 1. Install AppDaemon add-on
+
+**Settings → Add-ons → Add-on Store → AppDaemon** → Install, enable Start on boot.
+
+#### 2. Add Python packages
+
+**AppDaemon → Configuration tab**, add under `python_packages`:
+```
+Pillow, requests, pycaruna, icalendar, recurring_ical_events, aiohttp
+```
+
+#### 3. Clone the repo into AppDaemon's config directory
+
+From the HA Terminal add-on (the host path `/addon_configs/a0d7b954_appdaemon/` is `/config/` inside AppDaemon's container):
+
+```bash
+cd /addon_configs/a0d7b954_appdaemon
+git clone https://github.com/jaatuli/masterplan eink
+cp eink/config.example.yaml eink/config.yaml
+nano eink/config.yaml   # fill in credentials
+```
+
+#### 4. Install the AppDaemon app
+
+Copy `ha/appdaemon/apps/dashboard_renderer.py` and `ha/appdaemon/apps/apps.yaml` to `/config/apps/` (the shared HA apps directory).
+
+#### 5. Restart AppDaemon
+
+The app runs immediately on startup and every 10 minutes after. The PNG is served at:
+```
+http://<your-ha-ip>:8123/local/dashboard.png
+```
+
+#### Path notes (AppDaemon container vs host)
+
+| Location | Host path (Terminal add-on) | AppDaemon container path |
+|---|---|---|
+| AppDaemon config | `/addon_configs/a0d7b954_appdaemon/` | `/config/` |
+| HA config / www | `/config/` | `/homeassistant/` |
+| eink repo | `/addon_configs/a0d7b954_appdaemon/eink/` | `/config/eink/` |
+| Output PNG | `/config/www/dashboard.png` | `/homeassistant/www/dashboard.png` |
+
+#### 6. ESPHome config
+
+```yaml
+online_image:
+  - url: http://192.168.1.x:8123/local/dashboard.png
+    id: dashboard_img
+    format: PNG
+    update_interval: 600s
+    on_download_finished:
+      - component.update: my_display
+
+display:
+  - platform: rpi_dpi_rgb
+    id: my_display
+    lambda: |-
+      it.image(0, 0, id(dashboard_img));
+```
+
+### ESPHome board support
+
+Use the community package [`inytar/waveshare-esp32-s3-touch-lcd-7-esphome`](https://github.com/inytar/waveshare-esp32-s3-touch-lcd-7-esphome) (requires ESPHome 2025.4.2+). PSRAM must be enabled (8MB available on this board — required for 800×480 frame buffer).
+
+---
+
 ## Raspberry Pi deployment
 
 ### 1. Flash SD card
